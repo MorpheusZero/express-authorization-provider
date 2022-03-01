@@ -16,7 +16,7 @@ export class ExpressAuthorizationProvider {
    */
   private functionList: Record<
     string,
-    (req: Request, res: Response, next: NextFunction) => Promise<void>
+    (req: Request, res: Response, next: NextFunction) => void
   >;
 
   /**
@@ -45,7 +45,7 @@ export class ExpressAuthorizationProvider {
     if (this.debug) {
       console.debug("ERROR HANDLER ACTION: " + action);
     }
-    res.status(403).json(`Request does not have permission to: [${action}]`);
+    res.status(403).json(`You do not have permission to: [${action}]`);
   }
 
   /**
@@ -53,14 +53,10 @@ export class ExpressAuthorizationProvider {
    * @param action A unique string name associated with this handler that we can reference.
    * @param functionHandler The actual middleware function that we want to run for this action.
    */
-  public async use(
+  public use(
     action: string,
-    functionHandler: (
-      req: Request,
-      res: Response,
-      next: NextFunction
-    ) => Promise<void>
-  ): Promise<void> {
+    functionHandler: (req: Request, res: Response, next: NextFunction) => void
+  ): void {
     if (this.debug) {
       console.debug(`Registering [${action}]`);
     }
@@ -69,34 +65,43 @@ export class ExpressAuthorizationProvider {
 
   /**
    * This is the middleware function that you would reference in your express routes.
-   * @param action The action you want to call.
-   * @param req A reference to the express Request object.
-   * @param res A reference to the express Response object.
-   * @param next A reference to the express Next function.
+   * @param action The action you want to call
    */
   public can(
-    action: string,
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): any {
-    const handler = this.functionList[action];
-    if (handler) {
-      if (this.debug) {
-        console.debug(`Authorization Provider Handler Called: [${action}]`);
+    action: string
+  ): (req: Request, res: Response, next: NextFunction) => void {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const handler = this.functionList[action];
+      if (handler) {
+        if (this.debug) {
+          console.debug(`Authorization Provider Handler Called: [${action}]`);
+        }
+        try {
+          handler(req, res, next);
+          next();
+        } catch (error) {
+          await this.failureHandler(req, res, action);
+        }
+      } else {
+        next(
+          new Error(
+            `The specified authorization provider action was not registered: [${action}]`
+          )
+        );
       }
-      try {
-        handler(req, res, next);
-        next();
-      } catch (error) {
-        this.failureHandler(req, res, action);
-      }
-    } else {
-      next(
-        new Error(
-          `The specified authorization provider action was not registered: [${action}]`
-        )
-      );
-    }
+    };
+  }
+
+  /**
+   * This is an alias for the "can" route. Under the hood it calls the "can" handler and is only used to make your
+   * route middlewares easier to read if you defined roles with nouns instead of verbs.
+   *
+   * EXAMPLE: is("super admin user") instead of can("super admin user").
+   * @param noun The action key that we want to call in our roles definitions function list.
+   */
+  public is(
+    noun: string
+  ): (req: Request, res: Response, next: NextFunction) => void {
+    return this.can(noun);
   }
 }
