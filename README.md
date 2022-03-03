@@ -109,12 +109,37 @@ app.get("/users/stats", RolesMiddleware.provider.is("super admin user"), (req, r
 
 ### Optional Features
 When creating a new instance of ExpressAuthorizationProvider, you can optionally 
-pass a boolean for debug mode (default is false). You can also pass in a custom failHandler
-so when errors are thrown inside your providers that it will call a custom failureHandler.
+pass a boolean for debug mode (default is false). You can also pass in a custom failureHandler
+so when errors are thrown inside your providers that it will call a custom failureHandler. 
+
+Also, you can completely bypass the failureHandler by passing in the below boolean value. When doing this,
+instead of returning directly upon a failure, we will pass the error to the NextFunction in Express so you 
+can handle it later in your own Error Handling Middleware.
+
+```typescript
+new ExpressAuthorizationProvider({
+    debug: true,
+    failureHandler: (req, res, action) => {
+        // ... Any special logic I want to do here.
+        res.status(403).json({
+            message: `You don't have permission to ${action}`
+        });
+    },
+    dontUsefailureHandler: true // If you specify TRUE here, the above part is ignored.
+})
+```
 
 ### Contributing
-More info to come soon after more testing!
+I welcome any pull requests that are directly related to an open issue that has been approved for work. If you 
+have an issue with the tools--please open an issue before submitting a PR so we can discuss the possible solutions
+for your issue.
+
+When submitting a Pull Request, please make sure:
+   - You use the Pull Request Template and fill everything out.
+   - You have Prettier setup correctly in your IDE and that the code has been made "prettier" appropriately.
+   - Every new method/property should have documentation, so we remain clean for future devs.
+   - Use Interfaces when appropriate.
 
 ### Bugs & Contact
-Please create an issue on the repo!
+Please submit a new issue to report any bugs or to make a feature request!
 

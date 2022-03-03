@@ -24,4 +24,12 @@ export interface IAuthorizationProviderOptions {
     res: Response,
     action: string
   ) => Promise<void>;
+
+  /**
+   * If TRUE--instead of using the built-in failure handler, we will just throw a generic error
+   * and pass it into the next function.
+   *
+   * DEFAULT: false
+   */
+  dontUseFailureHandler?: boolean;
 }

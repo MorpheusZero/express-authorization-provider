@@ -11,10 +11,16 @@ export class ExpressAuthorizationProvider {
   private readonly debug: boolean;
 
   /**
+   * If TRUE, we will not use a failure handler and instead just pass an error to the next function to be handled later.
+   * @private
+   */
+  private readonly dontUseFailureHandler: boolean;
+
+  /**
    * A typed listing of all functions that the authorization provider is defined to handle during request routing.
    * @private
    */
-  private functionList: Record<
+  private readonly functionList: Record<
     string,
     (req: Request, res: Response, next: NextFunction) => void
   >;
@@ -23,27 +29,40 @@ export class ExpressAuthorizationProvider {
    * When an authorization attempt fails--then we will handle the failure here.
    * @private
    */
-  private failureHandler: (
+  private readonly failureHandler: (
     req: Request,
     res: Response,
     action: string
   ) => Promise<void>;
 
+  /**
+   * Create a new instance of the Express Authorization Provider.
+   * @param options The possible options you can pass in to the instance to determine its behaviour.
+   */
   constructor(options?: IAuthorizationProviderOptions) {
     this.functionList = {};
     this.debug = options?.debug ? options.debug : false;
     this.failureHandler = options?.failureHandler
       ? options.failureHandler
       : this.defaultFailureHandler;
+    this.dontUseFailureHandler = options?.dontUseFailureHandler
+      ? options.dontUseFailureHandler
+      : false;
   }
 
+  /**
+   * If you don't specify a custom failureHandler--we will use this one.
+   * @private
+   */
   private async defaultFailureHandler(
     _req: Request,
     res: Response,
     action: string
   ): Promise<void> {
     if (this.debug) {
-      console.debug("ERROR HANDLER ACTION: " + action);
+      console.debug(
+        "[Express Authorization Provider] - ERROR HANDLER ACTION: " + action
+      );
     }
     res.status(403).json(`You do not have permission to: [${action}]`);
   }
@@ -57,10 +76,18 @@ export class ExpressAuthorizationProvider {
     action: string,
     functionHandler: (req: Request, res: Response, next: NextFunction) => void
   ): void {
-    if (this.debug) {
-      console.debug(`Registering [${action}]`);
+    if (typeof functionHandler === "function") {
+      if (this.debug) {
+        console.debug(
+          `[Express Authorization Provider] - Registering [${action}]`
+        );
+      }
+      this.functionList[action] = functionHandler;
+    } else {
+      throw new Error(
+        "[Express Authorization Provider] - You can only register handlers that are functions! Please see the docs for more info!"
+      );
     }
-    this.functionList[action] = functionHandler;
   }
 
   /**
@@ -74,18 +101,24 @@ export class ExpressAuthorizationProvider {
       const handler = this.functionList[action];
       if (handler) {
         if (this.debug) {
-          console.debug(`Authorization Provider Handler Called: [${action}]`);
+          console.debug(
+            `[Express Authorization Provider] - Handler Called: [${action}]`
+          );
         }
         try {
           handler(req, res, next);
           next();
         } catch (error) {
-          await this.failureHandler(req, res, action);
+          if (this.dontUseFailureHandler) {
+            next(error);
+          } else {
+            await this.failureHandler(req, res, action);
+          }
         }
       } else {
         next(
           new Error(
-            `The specified authorization provider action was not registered: [${action}]`
+            `[Express Authorization Provider] - The specified provider action was not registered: [${action}]`
           )
         );
       }
@@ -93,7 +126,7 @@ export class ExpressAuthorizationProvider {
   }
 
   /**
-   * This is an alias for the "can" route. Under the hood it calls the "can" handler and is only used to make your
+   * This is an alias for the "can" method. Under the hood it calls the "can" handler and is only used to make your
    * route middlewares easier to read if you defined roles with nouns instead of verbs.
    *
    * EXAMPLE: is("super admin user") instead of can("super admin user").
