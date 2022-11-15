@@ -1,6 +1,6 @@
 {
   "name": "express-authorization-provider",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A Simple & Lightweight Authorization Provider for Express Middleware Written in Typescript",
   "main": "dist/index.js",
   "scripts": {

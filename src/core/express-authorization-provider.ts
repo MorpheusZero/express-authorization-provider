@@ -134,7 +134,7 @@ export class ExpressAuthorizationProvider {
    */
   public is(
     noun: string
-  ): (req: Request, res: Response, next: NextFunction) => void {
+  ): (req: Request, res: Response, next: NextFunction) => Promise<void> {
     return this.can(noun);
   }
 }
