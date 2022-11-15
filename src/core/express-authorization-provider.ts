@@ -22,7 +22,7 @@ export class ExpressAuthorizationProvider {
    */
   private readonly functionList: Record<
     string,
-    (req: Request, res: Response, next: NextFunction) => void
+    (req: Request, res: Response, next: NextFunction) => Promise<void>
   >;
 
   /**
@@ -74,7 +74,7 @@ export class ExpressAuthorizationProvider {
    */
   public use(
     action: string,
-    functionHandler: (req: Request, res: Response, next: NextFunction) => void
+    functionHandler: (req: Request, res: Response, next: NextFunction) => Promise<void>
   ): void {
     if (typeof functionHandler === "function") {
       if (this.debug) {
@@ -96,7 +96,7 @@ export class ExpressAuthorizationProvider {
    */
   public can(
     action: string
-  ): (req: Request, res: Response, next: NextFunction) => void {
+  ): (req: Request, res: Response, next: NextFunction) => Promise<void> {
     return async (req: Request, res: Response, next: NextFunction) => {
       const handler = this.functionList[action];
       if (handler) {
@@ -106,7 +106,7 @@ export class ExpressAuthorizationProvider {
           );
         }
         try {
-          handler(req, res, next);
+          await handler(req, res, next);
           next();
         } catch (error) {
           if (this.dontUseFailureHandler) {
